@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BRADIPLOT — ECharts 3D (Time=X, MD=Y, Depth=Z)</title>
+  <style>
+    :root{--bg:#f6f8fa;--card:#fff;--muted:#6b7280;--accent:#2c7bb6}
+    html,body{height:100%;margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);color:#111}
+    .app{max-width:1200px;margin:12px auto;padding:12px;box-sizing:border-box}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    h1{font-size:18px;margin:0}
+    .top{display:flex;gap:12px;flex-wrap:wrap}
+    .leftCard, .rightCard{background:var(--card);padding:12px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+    .leftCard{flex:0 0 360px;min-width:220px}
+    .rightCard{flex:1;min-width:260px;display:flex;flex-direction:column;align-items:flex-end}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    input[type="date"]{width:100%;padding:8px;border-radius:6px;border:1px solid #e6eef5;margin-bottom:10px;font-size:14px}
+    .filters{width:100%;display:flex;flex-direction:column;gap:10px}
+    .row{display:flex;align-items:center;gap:10px;width:100%}
+    .row .name{min-width:56px;color:var(--muted);font-size:13px}
+    .rangeInput{flex:1}
+    .rangeValues{min-width:140px;text-align:right;font-size:13px;color:var(--muted)}
+    .chartWrap{margin-top:12px;display:flex;gap:12px}
+    #chartCard{flex:1;background:linear-gradient(#fff,#fbfdff);border-radius:10px;padding:10px;box-shadow:0 8px 20px rgba(0,0,0,0.06);min-height:520px;position:relative}
+    #chart{width:100%;height:78vh;min-height:420px}
+    .colorLegend{width:120px;display:flex;flex-direction:column;align-items:center;gap:8px}
+    .colorTitle{font-size:13px;color:var(--muted);font-weight:600}
+    .colorBarVisual{height:500px;width:30px;border-radius:6px;background:linear-gradient(#2c7bb6,#ffffbf,#d7191c);border:1px solid rgba(0,0,0,0.06)}
+    .colorTicks{font-size:13px;color:var(--muted);display:flex;flex-direction:column;justify-content:space-between;height:500px}
+    .stats{margin-top:12px;background:var(--card);padding:10px;border-radius:10px;display:flex;flex-wrap:wrap;gap:12px;box-shadow:0 6px 18px rgba(0,0,0,0.04)}
+    .stat{font-size:14px;color:#222}
+    /* dual-range visual track */
+    .timeSliderWrap{
+      position: relative;
+      height: 48px;
+      padding: 8px 0;
+      width: 100%;
+      max-width: 600px;
+      margin: 0 auto;
+      margin-bottom: 16px;
+    }
+    .timeRange{
+      position: relative;
+      width: 100%;
+      height: 12px;
+      border-radius: 6px;
+      background: #e6eef5;
+      cursor: grab;
+      transition: background 0.3s ease;
+      margin-top: 16px;
+    }
+    .timeRange:active{cursor:grabbing}
+    input[type='range'].time{
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 12px;
+      background: transparent;
+      pointer-events: auto;
+      -webkit-appearance: none;
+      margin-top: 16px;
+    }
+    input[type='range'].time::-webkit-slider-thumb{
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(44,123,182,0.12);
+      border: 2px solid #fff;
+      cursor: pointer;
+      margin-top: -6px;
+    }
+    input[type='range'].time::-moz-range-thumb{
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid #fff;
+      cursor: pointer;
+    }
+    @media (max-width:880px){
+      .top{flex-direction:column}
+      .leftCard{width:100%}
+      .rightCard{width:100%;align-items:stretch}
+      .rangeValues{min-width:90px}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>BRADIPLOT — ECharts 3D (Time=X, MD=Y, Depth=Z)</h1>
+      <div style="font-size:13px;color:var(--muted)">Terremoti del catalogo Gossip INGV-OV con MD>0</div>
+    </header>
+    <div class="top">
+      <div class="leftCard">
+        <label>Selezione giorni inizio</label>
+        <input id="dateMin" type="date">
+
+        <label style="margin-top:8px">Selezione giorni fine</label>
+        <input id="dateMax" type="date">
+      </div>
+      <div class="rightCard">
+        <div style="width:100%" class="filters">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <strong>Filtri</strong><span style="font-size:12px;color:var(--muted)">dinamici</span>
+          </div>
+          <div class="row" style="margin-top:6px">
+            <div class="name">MD</div>
+            <input id="mdMin" class="rangeInput" type="range" min="0" max="6" step="0.1" value="0">
+            <input id="mdMax" class="rangeInput" type="range" min="0" max="6" step="0.1" value="6">
+            <div class="rangeValues" id="mdValues">0 — 6</div>
+          </div>
+          <div class="row">
+            <div class="name">Depth</div>
+            <input id="depthMin" class="rangeInput" type="range" min="-10000" max="0" step="1" value="-5000">
+            <input id="depthMax" class="rangeInput" type="range" min="-10000" max="0" step="1" value="0">
+            <div class="rangeValues" id="depthValues">-5000 — 0 m</div>
+          </div>
+          <!-- Barra temporale -->
+          <label style="margin-top:8px; display:block">Finestra temporale mobile</label>
+          <div class="timeSliderWrap">
+            <div class="timeRange" id="timeRangeTrack"></div>
+            <input id="timeWindowStart" class="time" type="range" />
+            <input id="timeWindowEnd" class="time" type="range" />
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+            <div id="timeWindowStartLabel" style="font-size:13px;color:var(--muted)"></div>
+            <div id="timeWindowEndLabel" style="font-size:13px;color:var(--muted)"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+            <label for="windowSize">Dimensione finestra (giorni):</label>
+            <input id="windowSize" type="number" min="1" max="365" value="7" style="width:60px">
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="chartWrap">
+      <div id="chartCard">
+        <div id="chart"></div>
+      </div>
+      <!-- Colorbar column on the right -->
+      <div class="colorLegend">
+        <div class="colorTitle">Depth=Z</div>
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <div class="colorBarVisual" id="colorBarVisual"></div>
+          <div class="colorTicks" id="colorTicks">
+            <div id="tickMax">0 m</div>
+            <div id="tickMid">-</div>
+            <div id="tickMin">- m</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="stats" id="stats" style="margin-top:10px">
+      <div class="stat" id="totalCount">Totale terremoti filtrati: 0</div>
+      <div class="stat" id="c1">MD ≥ 0 < 1: 0</div>
+      <div class="stat" id="c2">MD ≥ 1 < 2: 0</div>
+      <div class="stat" id="c3">MD ≥ 2 < 3: 0</div>
+      <div class="stat" id="c4">MD ≥ 3 < 4: 0</div>
+      <div class="stat" id="c5">MD ≥ 4: 0</div>
+    </div>
+  </div>
+  <!-- ECharts 6 + echarts-gl (3D) from jsDelivr (ok) -->
+  <script src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+  <script>
+  // CONFIG
+  const CSV_URL = 'https://marcscama.github.io/BradiPlot/Terremoti-Gossip.csv';
+  // DOM
+  const dateMinInput = document.getElementById('dateMin');
+  const dateMaxInput = document.getElementById('dateMax');
+  const mdMinEl = document.getElementById('mdMin');
+  const mdMaxEl = document.getElementById('mdMax');
+  const depthMinEl = document.getElementById('depthMin');
+  const depthMaxEl = document.getElementById('depthMax');
+  const mdValues = document.getElementById('mdValues');
+  const depthValues = document.getElementById('depthValues');
+  const totalCount = document.getElementById('totalCount');
+  const c1 = document.getElementById('c1');
+  const c2 = document.getElementById('c2');
+  const c3 = document.getElementById('c3');
+  const c4 = document.getElementById('c4');
+  const c5 = document.getElementById('c5');
+  const chartEl = document.getElementById('chart');
+  const tickMax = document.getElementById('tickMax');
+  const tickMid = document.getElementById('tickMid');
+  const tickMin = document.getElementById('tickMin');
+  const timeWindowStart = document.getElementById('timeWindowStart');
+  const timeWindowEnd = document.getElementById('timeWindowEnd');
+  const timeRangeTrack = document.getElementById('timeRangeTrack');
+  const timeWindowStartLabel = document.getElementById('timeWindowStartLabel');
+  const timeWindowEndLabel = document.getElementById('timeWindowEndLabel');
+  const windowSizeInput = document.getElementById('windowSize');
+  // state
+  let preprocessed = [];
+  let filtered = [];
+  let chart = null;
+
+  // Funzione per aggiornare la barra temporale in base ai selettori di data
+  function updateTimeRangeFromDateSelectors() {
+    // Ottieni le date selezionate
+    const minDate = new Date(dateMinInput.value + 'T00:00:00').getTime();
+    const maxDate = new Date(dateMaxInput.value + 'T23:59:59').getTime();
+
+    // Imposta i limiti della barra temporale
+    timeWindowStart.min = minDate;
+    timeWindowStart.max = maxDate;
+    timeWindowEnd.min = minDate;
+    timeWindowEnd.max = maxDate;
+
+    // Imposta i valori iniziali della finestra temporale
+    const windowSize = Number(windowSizeInput.value) * 24 * 3600 * 1000;
+    let startVal = minDate;
+    let endVal = Math.min(maxDate, minDate + windowSize);
+
+    // Se la finestra iniziale è più grande del range selezionato, ridimensionala
+    if(endVal - startVal < windowSize) {
+      endVal = maxDate;
+      startVal = Math.max(minDate, maxDate - windowSize);
+    }
+
+    timeWindowStart.value = startVal;
+    timeWindowEnd.value = endVal;
+
+    updateTimeWindowTrackVisual();
+    updateTimeWindowLabels();
+  }
+
+  // Nuova funzione per aggiornare la visualizzazione della finestra temporale
+  function updateTimeWindowTrackVisual() {
+    const min = Number(timeWindowStart.min), max = Number(timeWindowStart.max);
+    let v0 = Number(timeWindowStart.value), v1 = Number(timeWindowEnd.value);
+    if(v0 > v1){ [v0,v1] = [v1,v0]; } // swap if inverted
+    const p0 = ((v0 - min) / (max - min)) * 100;
+    const p1 = ((v1 - min) / (max - min)) * 100;
+    // base gray, selected accent in middle
+    timeRangeTrack.style.background = `linear-gradient(90deg,#e6eef5 ${p0}%, var(--accent) ${p0}%, var(--accent) ${p1}%, #e6eef5 ${p1}%)`;
+  }
+
+  // Nuova funzione per aggiornare le etichette della finestra temporale
+  function updateTimeWindowLabels() {
+    const a = Number(timeWindowStart.value), b = Number(timeWindowEnd.value);
+    timeWindowStartLabel.textContent = a ? new Date(a).toISOString().slice(0,19).replace('T',' ') : '-';
+    timeWindowEndLabel.textContent = b ? new Date(b).toISOString().slice(0,19).replace('T',' ') : '-';
+  }
+
+  // Funzione per gestire il cambiamento della finestra temporale
+  function handleTimeWindowChange() {
+    const windowSize = Number(windowSizeInput.value) * 24 * 3600 * 1000;
+    const minVal = Number(timeWindowStart.min);
+    const maxVal = Number(timeWindowStart.max);
+
+    let startVal = Number(timeWindowStart.value);
+    let endVal = Number(timeWindowEnd.value);
+
+    // Assicurati che i valori siano entro i limiti impostati dai selettori di data
+    startVal = Math.max(minVal, Math.min(maxVal, startVal));
+    endVal = Math.max(minVal, Math.min(maxVal, endVal));
+
+    // Assicurati che startVal <= endVal
+    if(startVal > endVal) {
+      [startVal, endVal] = [endVal, startVal];
+    }
+
+    // Mantieni la dimensione della finestra fissa
+    if(endVal - startVal < windowSize) {
+      // Se la finestra è troppo piccola, espandila
+      const center = (startVal + endVal) / 2;
+      startVal = Math.max(minVal, center - windowSize/2);
+      endVal = Math.min(maxVal, center + windowSize/2);
+
+      // Se ancora troppo piccola (perché vicino ai bordi), ridimensionala
+      if(endVal - startVal < windowSize) {
+        if(startVal === minVal) {
+          endVal = Math.min(maxVal, startVal + windowSize);
+        } else {
+          startVal = Math.max(minVal, endVal - windowSize);
+        }
+      }
+    }
+
+    // Assicurati che i valori siano entro i limiti
+    startVal = Math.max(minVal, Math.min(maxVal, startVal));
+    endVal = Math.max(minVal, Math.min(maxVal, endVal));
+
+    // Aggiorna i valori
+    timeWindowStart.value = startVal;
+    timeWindowEnd.value = endVal;
+
+    updateTimeWindowTrackVisual();
+    updateTimeWindowLabels();
+    applyFilters();
+  }
+
+  // Funzione per gestire il cambiamento della dimensione della finestra
+  function handleWindowSizeChange() {
+    const windowSize = Number(windowSizeInput.value) * 24 * 3600 * 1000;
+    const minVal = Number(timeWindowStart.min);
+    const maxVal = Number(timeWindowStart.max);
+    let currentStart = Number(timeWindowStart.value);
+    let currentEnd = Number(timeWindowEnd.value);
+
+    // Calcola la nuova finestra mantenendo il centro se possibile
+    const currentWindowSize = currentEnd - currentStart;
+    const newWindowSize = windowSize;
+    const center = currentStart + (currentWindowSize / 2);
+
+    let newStart = Math.max(minVal, center - (newWindowSize / 2));
+    let newEnd = Math.min(maxVal, center + (newWindowSize / 2));
+
+    // Se la finestra è troppo vicina ai bordi, aggiustala
+    if(newEnd - newStart < windowSize) {
+      if(newStart === minVal) {
+        newEnd = Math.min(maxVal, minVal + windowSize);
+      } else if(newEnd === maxVal) {
+        newStart = Math.max(minVal, maxVal - windowSize);
+      }
+    }
+
+    timeWindowStart.value = newStart;
+    timeWindowEnd.value = newEnd;
+
+    updateTimeWindowTrackVisual();
+    updateTimeWindowLabels();
+    applyFilters();
+  }
+
+  function parseCSV(text){
+    const lines = text.split(/\r?\n/).filter(l=>l.trim());
+    if(!lines.length) return [];
+    const headers = lines.shift().split(',').map(h=>h.trim());
+    return lines.map(line=>{
+      const cols = line.split(','); const obj = {};
+      headers.forEach((h,i)=> obj[h] = cols[i]!==undefined ? cols[i].trim() : '');
+      return obj;
+    });
+  }
+
+  function normalizeRow(row){
+    let t = row.Time ? String(row.Time).trim() : '';
+    t = t.replace(' ', 'T').replace(/\.(\d+)/,'');
+    const d = new Date(t);
+    let timeObj=null,timeMs=null;
+    if(!isNaN(d.getTime())){ timeObj = new Date(Math.floor(d.getTime()/1000)*1000); timeMs = timeObj.getTime(); }
+    const depthKm = Number(row.Depth);
+    const depth_m = Number.isFinite(depthKm) ? -depthKm*1000 : NaN;
+    return { MD: Number(row.MD), Depth_km: depthKm, Depth_m: depth_m, Time: timeObj, timeMs: timeMs };
+  }
+
+  function updateSliderTexts(){
+    mdValues.textContent = `${mdMinEl.value} — ${mdMaxEl.value}`;
+    depthValues.textContent = `${depthMinEl.value} — ${depthMaxEl.value} m`;
+  }
+
+  function applyFilters() {
+    updateSliderTexts();
+    updateTimeWindowLabels();
+    updateTimeWindowTrackVisual();
+
+    let mdLo = +mdMinEl.value, mdHi = +mdMaxEl.value;
+    if(mdLo > mdHi) [mdLo, mdHi] = [mdHi, mdLo];
+    let dLo = +depthMinEl.value, dHi = +depthMaxEl.value;
+    if(dLo > dHi) [dLo, dHi] = [dHi, dLo];
+
+    // Utilizzare i valori correnti della barra temporale
+    let t0 = Number(timeWindowStart.value), t1 = Number(timeWindowEnd.value);
+    if(t0 > t1) [t0, t1] = [t1, t0];
+
+    filtered = preprocessed.filter(d => {
+      if(d.MD < mdLo || d.MD > mdHi) return false;
+      if(d.Depth_m < dLo || d.Depth_m > dHi) return false;
+      if(d.timeMs < t0 || d.timeMs > t1) return false;
+      return true;
+    });
+
+    updateStats();
+    draw3D();
+  }
+
+  function updateStats() {
+    totalCount.textContent = `Totale terremoti filtrati: ${filtered.length}`;
+    c1.textContent = `MD ≥ 0 < 1: ${filtered.filter(d=>d.MD>=0 && d.MD<1).length}`;
+    c2.textContent = `MD ≥ 1 < 2: ${filtered.filter(d=>d.MD>=1 && d.MD<2).length}`;
+    c3.textContent = `MD ≥ 2 < 3: ${filtered.filter(d=>d.MD>=2 && d.MD<3).length}`;
+    c4.textContent = `MD ≥ 3 < 4: ${filtered.filter(d=>d.MD>=3 && d.MD<4).length}`;
+    c5.textContent = `MD ≥ 4: ${filtered.filter(d=>d.MD>=4).length}`;
+  }
+
+  function initChart() {
+    if(!chart) chart = echarts.init(chartEl);
+    window.addEventListener('resize', ()=> chart && chart.resize());
+  }
+
+  function draw3D() {
+    const dataForColor = filtered.length ? filtered : preprocessed;
+    if(!dataForColor || !dataForColor.length){ chart.clear(); return; }
+
+    const xArr = dataForColor.map(d=>d.timeMs);
+    const yArr = dataForColor.map(d=>d.MD);
+    const zArr = dataForColor.map(d=>d.Depth_m);
+    const depthMin = Math.min(...zArr);
+    const depthMax = Math.max(...zArr);
+    const mdMin = Math.min(...yArr);
+    const mdMax = Math.max(...yArr);
+
+    // update right color ticks
+    tickMax.textContent = `${Math.round(depthMax)} m`;
+    tickMin.textContent = `${Math.round(depthMin)} m`;
+    tickMid.textContent = `${Math.round((depthMax + depthMin)/2)} m`;
+
+    const seriesData = dataForColor.map(d => [d.timeMs, d.MD, d.Depth_m]);
+
+    // Ottieni i limiti attuali della barra temporale
+    let xMin = Number(timeWindowStart.value), xMax = Number(timeWindowEnd.value);
+    if(xMin > xMax) [xMin,xMax] = [xMax,xMin];
+    if(xMin === xMax){
+      xMin -= 24*3600*1000;
+      xMax += 24*3600*1000;
+    }
+
+    const option = {
+      tooltip:{
+        formatter: params => {
+          const v = params.value || [];
+          const timeStr = v[0] ? new Date(v[0]).toISOString().slice(0,19).replace('T',' ') : 'n/a';
+          return `Time: ${timeStr}<br/>MD: ${v[1].toFixed(2)}<br/>Depth: ${Math.round(v[2])} m`;
+        }
+      },
+      visualMap: [
+        {
+          type: 'continuous',
+          dimension: 2, // depth
+          min: depthMin,
+          max: depthMax,
+          inRange: { color: ['#2c7bb6','#ffffbf','#d7191c'] },
+          orient: 'vertical',
+          right: 20,
+          top: 'center',
+          itemHeight: 400,
+          itemWidth: 20,
+          text: ['Depth=Z',''],
+          formatter: v => `${Math.round(v)} m`
+        },
+        {
+          type: 'continuous',
+          dimension: 1, // MD -> size
+          min: mdMin,
+          max: mdMax,
+          inRange: { symbolSize: [4, 24] },
+          show: false
+        }
+      ],
+      grid3D: {
+        viewControl: { autoRotate: false, projection: 'perspective' },
+        boxWidth: '300'
+      },
+      xAxis3D: {
+        name: 'Time',
+        type: 'value',
+        min: xMin,
+        max: xMax,
+        axisLabel: { formatter: val => val ? new Date(val).toISOString().slice(0,10) : '' }
+      },
+      yAxis3D: { name: 'MD', type: 'value', min: mdMin, max: mdMax },
+      zAxis3D: { name: 'Depth (m)', type: 'value', min: depthMin, max: 0 },
+      series: [{
+        type: 'scatter3D',
+        data: seriesData,
+        itemStyle: { borderWidth: 0.1 },
+        emphasis: { itemStyle: { borderWidth: 1 } }
+      }]
+    };
+
+    chart.setOption(option, { notMerge: false });
+  }
+
+  // Load CSV
+  async function loadData() {
+    try {
+      const resp = await fetch(CSV_URL);
+      if(!resp.ok) throw new Error('HTTP ' + resp.status);
+      const txt = await resp.text();
+      const rows = parseCSV(txt);
+      preprocessed = rows.map(normalizeRow).filter(r => Number.isFinite(r.MD) && Number.isFinite(r.Depth_m) && r.Time instanceof Date);
+      if(!preprocessed.length) throw new Error('Nessun dato valido dopo preprocessing.');
+
+      // MD sliders bounds
+      const mdVals = preprocessed.map(d=>d.MD);
+      const mdMinVal = Math.floor(Math.min(...mdVals)||0), mdMaxVal = Math.ceil(Math.max(...mdVals)||6);
+      mdMinEl.min = Math.max(0, mdMinVal-1); mdMinEl.max = mdMaxVal+1; mdMinEl.value = Math.max(0, mdMinVal-1);
+      mdMaxEl.min = Math.max(0, mdMinVal-1); mdMaxEl.max = mdMaxVal+1; mdMaxEl.value = mdMaxVal+1;
+
+      // Depth sliders
+      const depthMeters = preprocessed.map(d=>d.Depth_m);
+      const dataMin = Math.floor(Math.min(...depthMeters));
+      const initMin = Math.max(-10000, Math.min(dataMin, -100));
+      depthMinEl.min = -10000; depthMinEl.max = 0; depthMinEl.value = initMin;
+      depthMaxEl.min = -10000; depthMaxEl.max = 0; depthMaxEl.value = 0;
+
+      // Trova il range completo delle date disponibili
+      const times = preprocessed.map(d=>d.timeMs).filter(Boolean);
+      const tMin = Math.min(...times), tMax = Math.max(...times);
+
+      // Imposta i valori iniziali per i selettori di data
+      // Usiamo tutto il range disponibile come valore iniziale
+      const initialMinDate = new Date(tMin).toISOString().slice(0,10);
+      const initialMaxDate = new Date(tMax).toISOString().slice(0,10);
+      dateMinInput.value = initialMinDate;
+      dateMaxInput.value = initialMaxDate;
+
+      // Imposta il valore minimo per i selettori di data (prima data disponibile)
+      dateMinInput.min = initialMinDate;
+      dateMaxInput.min = initialMinDate;
+      // Imposta il valore massimo per i selettori di data (ultima data disponibile)
+      dateMinInput.max = initialMaxDate;
+      dateMaxInput.max = initialMaxDate;
+
+      updateSliderTexts();
+      initChart();
+      setupTimeRangeDrag();
+
+      // Inizializza la barra temporale con i valori dei selettori di data
+      updateTimeRangeFromDateSelectors();
+      applyFilters();
+    } catch(err) {
+      console.error('Errore caricamento CSV', err);
+      alert('Errore caricamento CSV: ' + (err.message||err));
+    }
+  }
+
+  // Funzione per gestire il drag della finestra temporale
+  function setupTimeRangeDrag() {
+    let isDragging = false;
+    let initialMouseX = 0;
+    let initialWindowStart = 0;
+    let initialWindowEnd = 0;
+    let debounceTimer = null;
+
+    timeRangeTrack.addEventListener('mousedown', (e) => {
+      const rect = timeRangeTrack.getBoundingClientRect();
+      const min = Number(timeWindowStart.min), max = Number(timeWindowStart.max);
+      let v0 = Number(timeWindowStart.value), v1 = Number(timeWindowEnd.value);
+      if(v0 > v1){ [v0,v1] = [v1,v0]; } // swap if inverted
+      const p0 = ((v0 - min) / (max - min)) * rect.width;
+      const p1 = ((v1 - min) / (max - min)) * rect.width;
+
+      if(e.offsetX >= p0 && e.offsetX <= p1) {
+        isDragging = true;
+        initialMouseX = e.clientX;
+        initialWindowStart = Number(timeWindowStart.value);
+        initialWindowEnd = Number(timeWindowEnd.value);
+        e.preventDefault(); // Previene la selezione del testo durante il drag
+      }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if(isDragging) {
+        const rect = timeRangeTrack.getBoundingClientRect();
+        const min = Number(timeWindowStart.min), max = Number(timeWindowStart.max);
+        const deltaX = e.clientX - initialMouseX;
+        const deltaTime = deltaX / rect.width * (max - min);
+
+        let newStart = initialWindowStart + deltaTime;
+        let newEnd = initialWindowEnd + deltaTime;
+
+        // Assicurati che la finestra rimanga entro i limiti
+        if(newStart < min) {
+          const diff = min - newStart;
+          newStart += diff;
+          newEnd += diff;
+        }
+        if(newEnd > max) {
+          const diff = newEnd - max;
+          newStart -= diff;
+          newEnd -= diff;
+        }
+
+        // Assicurati che la finestra abbia la dimensione corretta
+        const windowSize = Number(windowSizeInput.value) * 24 * 3600 * 1000;
+        if(newEnd - newStart < windowSize) {
+          if(newStart === min) {
+            newEnd = Math.min(max, newStart + windowSize);
+          } else if(newEnd === max) {
+            newStart = Math.max(min, newEnd - windowSize);
+          } else {
+            const center = (newStart + newEnd) / 2;
+            newStart = Math.max(min, center - windowSize/2);
+            newEnd = Math.min(max, center + windowSize/2);
+          }
+        }
+
+        timeWindowStart.value = newStart;
+        timeWindowEnd.value = newEnd;
+
+        updateTimeWindowTrackVisual();
+        updateTimeWindowLabels();
+
+        // Aggiorna la visualizzazione dei dati con un debounce per migliorare le prestazioni
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          applyFilters();
+        }, 100);
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+      clearTimeout(debounceTimer);
+      applyFilters(); // Assicurati che i dati vengano aggiornati alla fine del drag
+    });
+  }
+
+  // Funzione per gestire il cambiamento dei selettori di data
+  function handleDateSelectorChange() {
+    // Aggiorna la barra temporale quando cambia la data di inizio o fine
+    updateTimeRangeFromDateSelectors();
+    applyFilters();
+  }
+
+  // UI wiring
+  function attachEvents() {
+    const inputs = [mdMinEl, mdMaxEl, depthMinEl, depthMaxEl];
+    inputs.forEach(el => {
+      el.addEventListener('input', applyFilters);
+      el.addEventListener('change', applyFilters);
+    });
+
+    // Eventi per la barra temporale
+    timeWindowStart.addEventListener('input', handleTimeWindowChange);
+    timeWindowEnd.addEventListener('input', handleTimeWindowChange);
+    windowSizeInput.addEventListener('change', handleWindowSizeChange);
+
+    // Eventi per i selettori di data
+    dateMinInput.addEventListener('change', handleDateSelectorChange);
+    dateMaxInput.addEventListener('change', handleDateSelectorChange);
+  }
+
+  // bootstrap
+  (function bootstrap(){ attachEvents(); loadData(); })();
+  </script>
+</body>
+</html>
