@@ -30,15 +30,17 @@
     .colorTicks{font-size:13px;color:var(--muted);display:flex;flex-direction:column;justify-content:space-between;height:500px}
     .stats{margin-top:12px;background:var(--card);padding:10px;border-radius:10px;display:flex;flex-wrap:wrap;gap:12px;box-shadow:0 6px 18px rgba(0,0,0,0.04)}
     .stat{font-size:14px;color:#222}
-    /* dual-range visual track */
+
+    /* time slider */
     .timeSliderWrap{
       position: relative;
-      height: 48px;
+      height: 60px;
       padding: 8px 0;
       width: 100%;
       max-width: 600px;
       margin: 0 auto;
       margin-bottom: 16px;
+      user-select: none;
     }
     .timeRange{
       position: relative;
@@ -48,9 +50,11 @@
       background: #e6eef5;
       cursor: grab;
       transition: background 0.3s ease;
-      margin-top: 16px;
+      margin-top: 22px;
     }
     .timeRange:active{cursor:grabbing}
+
+    /* native visible round handles (enabled) */
     input[type='range'].time{
       position: absolute;
       left: 0;
@@ -61,26 +65,18 @@
       pointer-events: auto;
       -webkit-appearance: none;
       margin-top: 16px;
+      z-index: 5;
     }
     input[type='range'].time::-webkit-slider-thumb{
       -webkit-appearance: none;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 0 4px rgba(44,123,182,0.12);
-      border: 2px solid #fff;
-      cursor: pointer;
-      margin-top: -6px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #2c7bb6; border: 2px solid #fff; box-shadow: 0 0 0 6px rgba(44,123,182,0.08);
+      cursor: pointer; margin-top: -4px;
     }
     input[type='range'].time::-moz-range-thumb{
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      background: var(--accent);
-      border: 2px solid #fff;
-      cursor: pointer;
+      width: 20px; height: 20px; border-radius: 50%; background: #2c7bb6; border: 2px solid #fff; cursor: pointer;
     }
+
     @media (max-width:880px){
       .top{flex-direction:column}
       .leftCard{width:100%}
@@ -93,8 +89,9 @@
   <div class="app">
     <header>
       <h1>BRADIPLOT — ECharts 3D (Time=X, MD=Y, Depth=Z)</h1>
-      <div style="font-size:13px;color:var(--muted)">Terremoti del catalogo Gossip INGV-OV con MD>0</div>
+      <div style="font-size:13px;color:var(--muted)">Terremoti del catalogo Gossip INGV-OV con MD&gt;0</div>
     </header>
+
     <div class="top">
       <div class="leftCard">
         <label>Selezione giorni inizio</label>
@@ -102,47 +99,54 @@
 
         <label style="margin-top:8px">Selezione giorni fine</label>
         <input id="dateMax" type="date">
+        <div style="font-size:13px;color:var(--muted);margin-top:6px">Giorni totali: <span id="totalDays">-</span></div>
       </div>
+
       <div class="rightCard">
         <div style="width:100%" class="filters">
           <div style="display:flex;justify-content:space-between;align-items:center">
             <strong>Filtri</strong><span style="font-size:12px;color:var(--muted)">dinamici</span>
           </div>
+
           <div class="row" style="margin-top:6px">
             <div class="name">MD</div>
             <input id="mdMin" class="rangeInput" type="range" min="0" max="6" step="0.1" value="0">
             <input id="mdMax" class="rangeInput" type="range" min="0" max="6" step="0.1" value="6">
             <div class="rangeValues" id="mdValues">0 — 6</div>
           </div>
+
           <div class="row">
             <div class="name">Depth</div>
             <input id="depthMin" class="rangeInput" type="range" min="-10000" max="0" step="1" value="-5000">
             <input id="depthMax" class="rangeInput" type="range" min="-10000" max="0" step="1" value="0">
             <div class="rangeValues" id="depthValues">-5000 — 0 m</div>
           </div>
+
           <!-- Barra temporale -->
           <label style="margin-top:8px; display:block">Finestra temporale mobile</label>
-          <div class="timeSliderWrap">
+          <div class="timeSliderWrap" id="timeSliderWrap">
             <div class="timeRange" id="timeRangeTrack"></div>
-            <input id="timeWindowStart" class="time" type="range" />
-            <input id="timeWindowEnd" class="time" type="range" />
+
+            <!-- two native range inputs with visible round thumbs -->
+            <input id="timeWindowStart" class="time" type="range" step="1000" />
+            <input id="timeWindowEnd" class="time" type="range" step="1000" />
           </div>
+
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
             <div id="timeWindowStartLabel" style="font-size:13px;color:var(--muted)"></div>
             <div id="timeWindowEndLabel" style="font-size:13px;color:var(--muted)"></div>
           </div>
+
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
             <label for="windowSize">Dimensione finestra (giorni):</label>
-            <input id="windowSize" type="number" min="1" max="365" value="7" style="width:60px">
+            <input id="windowSize" type="number" min="1" value="7" style="width:80px">
           </div>
         </div>
       </div>
     </div>
+
     <div class="chartWrap">
-      <div id="chartCard">
-        <div id="chart"></div>
-      </div>
-      <!-- Colorbar column on the right -->
+      <div id="chartCard"><div id="chart"></div></div>
       <div class="colorLegend">
         <div class="colorTitle">Depth=Z</div>
         <div style="display:flex;gap:8px;align-items:flex-start">
@@ -155,24 +159,28 @@
         </div>
       </div>
     </div>
+
     <div class="stats" id="stats" style="margin-top:10px">
       <div class="stat" id="totalCount">Totale terremoti filtrati: 0</div>
-      <div class="stat" id="c1">MD ≥ 0 < 1: 0</div>
-      <div class="stat" id="c2">MD ≥ 1 < 2: 0</div>
-      <div class="stat" id="c3">MD ≥ 2 < 3: 0</div>
-      <div class="stat" id="c4">MD ≥ 3 < 4: 0</div>
+      <div class="stat" id="c1">MD ≥ 0 &lt; 1: 0</div>
+      <div class="stat" id="c2">MD ≥ 1 &lt; 2: 0</div>
+      <div class="stat" id="c3">MD ≥ 2 &lt; 3: 0</div>
+      <div class="stat" id="c4">MD ≥ 3 &lt; 4: 0</div>
       <div class="stat" id="c5">MD ≥ 4: 0</div>
     </div>
   </div>
-  <!-- ECharts 6 + echarts-gl (3D) from jsDelivr (ok) -->
+
   <script src="https://cdn.jsdelivr.net/npm/echarts@6.0.0/dist/echarts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/echarts-gl@2.0.9/dist/echarts-gl.min.js"></script>
+
   <script>
   // CONFIG
   const CSV_URL = 'https://marcscama.github.io/BradiPlot/Terremoti-Gossip.csv';
+
   // DOM
   const dateMinInput = document.getElementById('dateMin');
   const dateMaxInput = document.getElementById('dateMax');
+  const totalDaysEl = document.getElementById('totalDays');
   const mdMinEl = document.getElementById('mdMin');
   const mdMaxEl = document.getElementById('mdMax');
   const depthMinEl = document.getElementById('depthMin');
@@ -192,154 +200,36 @@
   const timeWindowStart = document.getElementById('timeWindowStart');
   const timeWindowEnd = document.getElementById('timeWindowEnd');
   const timeRangeTrack = document.getElementById('timeRangeTrack');
+  const timeSliderWrap = document.getElementById('timeSliderWrap');
   const timeWindowStartLabel = document.getElementById('timeWindowStartLabel');
   const timeWindowEndLabel = document.getElementById('timeWindowEndLabel');
   const windowSizeInput = document.getElementById('windowSize');
+
   // state
   let preprocessed = [];
   let filtered = [];
   let chart = null;
+  let totalDays = 1;
 
-  // Funzione per aggiornare la barra temporale in base ai selettori di data
-  function updateTimeRangeFromDateSelectors() {
-    // Ottieni le date selezionate
-    const minDate = new Date(dateMinInput.value + 'T00:00:00').getTime();
-    const maxDate = new Date(dateMaxInput.value + 'T23:59:59').getTime();
+  // Controls the minimum pixel width for comfortable dragging.
+  // We'll compute the pixel width that corresponds to 1 day and always use:
+  // minVisiblePx = Math.max(1day_px, MIN_TOUCH_PX)
+  const MIN_TOUCH_PX = 36;
 
-    // Imposta i limiti della barra temporale
-    timeWindowStart.min = minDate;
-    timeWindowStart.max = maxDate;
-    timeWindowEnd.min = minDate;
-    timeWindowEnd.max = maxDate;
+  function msPerDay(){ return 24*3600*1000; }
 
-    // Imposta i valori iniziali della finestra temporale
-    const windowSize = Number(windowSizeInput.value) * 24 * 3600 * 1000;
-    let startVal = minDate;
-    let endVal = Math.min(maxDate, minDate + windowSize);
-
-    // Se la finestra iniziale è più grande del range selezionato, ridimensionala
-    if(endVal - startVal < windowSize) {
-      endVal = maxDate;
-      startVal = Math.max(minDate, maxDate - windowSize);
-    }
-
-    timeWindowStart.value = startVal;
-    timeWindowEnd.value = endVal;
-
-    updateTimeWindowTrackVisual();
-    updateTimeWindowLabels();
-  }
-
-  // Nuova funzione per aggiornare la visualizzazione della finestra temporale
-  function updateTimeWindowTrackVisual() {
-    const min = Number(timeWindowStart.min), max = Number(timeWindowStart.max);
-    let v0 = Number(timeWindowStart.value), v1 = Number(timeWindowEnd.value);
-    if(v0 > v1){ [v0,v1] = [v1,v0]; } // swap if inverted
-    const p0 = ((v0 - min) / (max - min)) * 100;
-    const p1 = ((v1 - min) / (max - min)) * 100;
-    // base gray, selected accent in middle
-    timeRangeTrack.style.background = `linear-gradient(90deg,#e6eef5 ${p0}%, var(--accent) ${p0}%, var(--accent) ${p1}%, #e6eef5 ${p1}%)`;
-  }
-
-  // Nuova funzione per aggiornare le etichette della finestra temporale
-  function updateTimeWindowLabels() {
-    const a = Number(timeWindowStart.value), b = Number(timeWindowEnd.value);
-    timeWindowStartLabel.textContent = a ? new Date(a).toISOString().slice(0,19).replace('T',' ') : '-';
-    timeWindowEndLabel.textContent = b ? new Date(b).toISOString().slice(0,19).replace('T',' ') : '-';
-  }
-
-  // Funzione per gestire il cambiamento della finestra temporale
-  function handleTimeWindowChange() {
-    const windowSize = Number(windowSizeInput.value) * 24 * 3600 * 1000;
-    const minVal = Number(timeWindowStart.min);
-    const maxVal = Number(timeWindowStart.max);
-
-    let startVal = Number(timeWindowStart.value);
-    let endVal = Number(timeWindowEnd.value);
-
-    // Assicurati che i valori siano entro i limiti impostati dai selettori di data
-    startVal = Math.max(minVal, Math.min(maxVal, startVal));
-    endVal = Math.max(minVal, Math.min(maxVal, endVal));
-
-    // Assicurati che startVal <= endVal
-    if(startVal > endVal) {
-      [startVal, endVal] = [endVal, startVal];
-    }
-
-    // Mantieni la dimensione della finestra fissa
-    if(endVal - startVal < windowSize) {
-      // Se la finestra è troppo piccola, espandila
-      const center = (startVal + endVal) / 2;
-      startVal = Math.max(minVal, center - windowSize/2);
-      endVal = Math.min(maxVal, center + windowSize/2);
-
-      // Se ancora troppo piccola (perché vicino ai bordi), ridimensionala
-      if(endVal - startVal < windowSize) {
-        if(startVal === minVal) {
-          endVal = Math.min(maxVal, startVal + windowSize);
-        } else {
-          startVal = Math.max(minVal, endVal - windowSize);
-        }
-      }
-    }
-
-    // Assicurati che i valori siano entro i limiti
-    startVal = Math.max(minVal, Math.min(maxVal, startVal));
-    endVal = Math.max(minVal, Math.min(maxVal, endVal));
-
-    // Aggiorna i valori
-    timeWindowStart.value = startVal;
-    timeWindowEnd.value = endVal;
-
-    updateTimeWindowTrackVisual();
-    updateTimeWindowLabels();
-    applyFilters();
-  }
-
-  // Funzione per gestire il cambiamento della dimensione della finestra
-  function handleWindowSizeChange() {
-    const windowSize = Number(windowSizeInput.value) * 24 * 3600 * 1000;
-    const minVal = Number(timeWindowStart.min);
-    const maxVal = Number(timeWindowStart.max);
-    let currentStart = Number(timeWindowStart.value);
-    let currentEnd = Number(timeWindowEnd.value);
-
-    // Calcola la nuova finestra mantenendo il centro se possibile
-    const currentWindowSize = currentEnd - currentStart;
-    const newWindowSize = windowSize;
-    const center = currentStart + (currentWindowSize / 2);
-
-    let newStart = Math.max(minVal, center - (newWindowSize / 2));
-    let newEnd = Math.min(maxVal, center + (newWindowSize / 2));
-
-    // Se la finestra è troppo vicina ai bordi, aggiustala
-    if(newEnd - newStart < windowSize) {
-      if(newStart === minVal) {
-        newEnd = Math.min(maxVal, minVal + windowSize);
-      } else if(newEnd === maxVal) {
-        newStart = Math.max(minVal, maxVal - windowSize);
-      }
-    }
-
-    timeWindowStart.value = newStart;
-    timeWindowEnd.value = newEnd;
-
-    updateTimeWindowTrackVisual();
-    updateTimeWindowLabels();
-    applyFilters();
-  }
-
+  // CSV helpers
   function parseCSV(text){
     const lines = text.split(/\r?\n/).filter(l=>l.trim());
     if(!lines.length) return [];
     const headers = lines.shift().split(',').map(h=>h.trim());
     return lines.map(line=>{
-      const cols = line.split(','); const obj = {};
+      const cols = line.split(',');
+      const obj = {};
       headers.forEach((h,i)=> obj[h] = cols[i]!==undefined ? cols[i].trim() : '');
       return obj;
     });
   }
-
   function normalizeRow(row){
     let t = row.Time ? String(row.Time).trim() : '';
     t = t.replace(' ', 'T').replace(/\.(\d+)/,'');
@@ -356,19 +246,105 @@
     depthValues.textContent = `${depthMinEl.value} — ${depthMaxEl.value} m`;
   }
 
-  function applyFilters() {
+  // Calculate totalDays inclusive using UTC-midnights to avoid timezone shifts
+  function computeTotalDaysInclusive(tMinMs, tMaxMs){
+    const d0 = new Date(tMinMs), d1 = new Date(tMaxMs);
+    const d0UTCmid = Date.parse(new Date(Date.UTC(d0.getUTCFullYear(), d0.getUTCMonth(), d0.getUTCDate())).toISOString().slice(0,10) + 'T00:00:00Z');
+    const d1UTCmid = Date.parse(new Date(Date.UTC(d1.getUTCFullYear(), d1.getUTCMonth(), d1.getUTCDate())).toISOString().slice(0,10) + 'T00:00:00Z');
+    return Math.max(1, Math.floor((d1UTCmid - d0UTCmid)/msPerDay()) + 1);
+  }
+
+  // Update gradient and native thumbs positions.
+  // Mapping rule used:
+  //   desiredPct = (windowSize / totalDays) * 100  (linear)
+  //   minPct = (1 / totalDays) * 100  (represents exactly 1 day)
+  //   visual width in px = clamp(desiredPct/100*trackW, minVisiblePx)
+  function updateThumbsAndTrack(){
+    const min = Number(timeWindowStart.min), max = Number(timeWindowStart.max);
+    if(!min || !max || max <= min){
+      timeRangeTrack.style.background = '#e6eef5';
+      return;
+    }
+
+    let s = Number(timeWindowStart.value), t = Number(timeWindowEnd.value);
+    if(s > t) [s,t] = [t,s];
+
+    const rect = timeRangeTrack.getBoundingClientRect();
+    const trackW = rect.width || 400;
+
+    // percent positions from logical inputs
+    const p0 = ((s - min) / (max - min)) * 100;
+    const p1 = ((t - min) / (max - min)) * 100;
+
+    // compute desired pct from windowSizeInput relative to totalDays (linear mapping)
+    const desiredDays = Math.max(1, Number(windowSizeInput.value) || 1);
+    let desiredPct = totalDays > 0 ? (desiredDays / totalDays) * 100 : 100;
+    desiredPct = Math.max(desiredPct, (1/totalDays) * 100); // ensure 1 day => at least 1-day-percent
+
+    // compute min visible px corresponding to 1 day (1day_px) and ensure comfortable touch (MIN_TOUCH_PX)
+    const oneDayPct = (1/totalDays) * 100;
+    const oneDayPx = (oneDayPct/100) * trackW;
+    const minVisiblePx = Math.max(oneDayPx, MIN_TOUCH_PX);
+
+    // calculate display width in px and corresponding display percent
+    let desiredPx = (desiredPct/100) * trackW;
+    if(desiredPx < minVisiblePx) desiredPx = minVisiblePx;
+    if(desiredPx > trackW) desiredPx = trackW;
+    const displayPctWidth = (desiredPx / trackW) * 100;
+
+    // center display band on logical center (so position reflects where logical window sits)
+    const logicalCenter = (p0 + p1) / 2;
+    let displayP0 = Math.max(0, logicalCenter - displayPctWidth/2);
+    let displayP1 = Math.min(100, logicalCenter + displayPctWidth/2);
+    if(displayP0 === 0) displayP1 = Math.min(100, displayPctWidth);
+    if(displayP1 === 100) displayP0 = Math.max(0, 100 - displayPctWidth);
+
+    timeRangeTrack.style.background = `linear-gradient(90deg,#e6eef5 ${displayP0}%, var(--accent) ${displayP0}%, var(--accent) ${displayP1}%, #e6eef5 ${displayP1}%)`;
+
+    // store positions for drag detection
+    timeRangeTrack._displayP0 = displayP0;
+    timeRangeTrack._displayP1 = displayP1;
+    timeRangeTrack._actualP0 = p0;
+    timeRangeTrack._actualP1 = p1;
+  }
+
+  function updateTimeWindowLabels(){
+    const a = Number(timeWindowStart.value), b = Number(timeWindowEnd.value);
+    timeWindowStartLabel.textContent = a ? new Date(a).toISOString().slice(0,19).replace('T',' ') : '-';
+    timeWindowEndLabel.textContent = b ? new Date(b).toISOString().slice(0,19).replace('T',' ') : '-';
+  }
+
+  // When the native thumbs move (keyboard or mouse), update logical window and keep windowSizeInput in sync.
+  function handleNativeInputChange(e){
+    const minVal = Number(timeWindowStart.min), maxVal = Number(timeWindowStart.max);
+    let s = Number(timeWindowStart.value), t = Number(timeWindowEnd.value);
+    if(s > t) [s,t] = [t,s];
+
+    // compute logical window in days from underlying values
+    const newWindowDays = Math.max(1, Math.round((t - s + 1) / msPerDay()));
+    // sync windowSizeInput with the logical window
+    windowSizeInput.value = newWindowDays;
+
+    s = Math.max(minVal, Math.min(maxVal, s));
+    t = Math.max(minVal, Math.min(maxVal, t));
+    timeWindowStart.value = Math.round(s);
+    timeWindowEnd.value = Math.round(t);
+
+    updateThumbsAndTrack();
+    updateTimeWindowLabels();
+    applyFilters();
+  }
+
+  function applyFilters(){
     updateSliderTexts();
     updateTimeWindowLabels();
-    updateTimeWindowTrackVisual();
+    updateThumbsAndTrack();
 
-    let mdLo = +mdMinEl.value, mdHi = +mdMaxEl.value;
-    if(mdLo > mdHi) [mdLo, mdHi] = [mdHi, mdLo];
-    let dLo = +depthMinEl.value, dHi = +depthMaxEl.value;
-    if(dLo > dHi) [dLo, dHi] = [dHi, dLo];
+    let mdLo = +mdMinEl.value, mdHi = +mdMaxEl.value; if(mdLo > mdHi) [mdLo, mdHi] = [mdHi, mdLo];
+    let dLo = +depthMinEl.value, dHi = +depthMaxEl.value; if(dLo > dHi) [dLo, dHi] = [dHi, dLo];
 
-    // Utilizzare i valori correnti della barra temporale
     let t0 = Number(timeWindowStart.value), t1 = Number(timeWindowEnd.value);
-    if(t0 > t1) [t0, t1] = [t1, t0];
+    if(t0 > t1) [t0,t1] = [t1,t0];
 
     filtered = preprocessed.filter(d => {
       if(d.MD < mdLo || d.MD > mdHi) return false;
@@ -381,7 +357,7 @@
     draw3D();
   }
 
-  function updateStats() {
+  function updateStats(){
     totalCount.textContent = `Totale terremoti filtrati: ${filtered.length}`;
     c1.textContent = `MD ≥ 0 < 1: ${filtered.filter(d=>d.MD>=0 && d.MD<1).length}`;
     c2.textContent = `MD ≥ 1 < 2: ${filtered.filter(d=>d.MD>=1 && d.MD<2).length}`;
@@ -390,97 +366,93 @@
     c5.textContent = `MD ≥ 4: ${filtered.filter(d=>d.MD>=4).length}`;
   }
 
-  function initChart() {
-    if(!chart) chart = echarts.init(chartEl);
-    window.addEventListener('resize', ()=> chart && chart.resize());
-  }
+  function initChart(){ if(!chart) chart = echarts.init(chartEl); window.addEventListener('resize', ()=>{ chart && chart.resize(); updateThumbsAndTrack(); }); }
 
-  function draw3D() {
-    const dataForColor = filtered.length ? filtered : preprocessed;
-    if(!dataForColor || !dataForColor.length){ chart.clear(); return; }
-
+  function draw3D(){
+    const dataForColor = filtered.length ? filtered : preprocessed; if(!dataForColor || !dataForColor.length){ chart.clear(); return; }
     const xArr = dataForColor.map(d=>d.timeMs);
     const yArr = dataForColor.map(d=>d.MD);
     const zArr = dataForColor.map(d=>d.Depth_m);
-    const depthMin = Math.min(...zArr);
-    const depthMax = Math.max(...zArr);
-    const mdMin = Math.min(...yArr);
-    const mdMax = Math.max(...yArr);
-
-    // update right color ticks
-    tickMax.textContent = `${Math.round(depthMax)} m`;
-    tickMin.textContent = `${Math.round(depthMin)} m`;
-    tickMid.textContent = `${Math.round((depthMax + depthMin)/2)} m`;
-
+    const depthMin = Math.min(...zArr); const depthMax = Math.max(...zArr);
+    const mdMin = Math.min(...yArr); const mdMax = Math.max(...yArr);
+    tickMax.textContent = `${Math.round(depthMax)} m`; tickMin.textContent = `${Math.round(depthMin)} m`; tickMid.textContent = `${Math.round((depthMax + depthMin)/2)} m`;
     const seriesData = dataForColor.map(d => [d.timeMs, d.MD, d.Depth_m]);
-
-    // Ottieni i limiti attuali della barra temporale
-    let xMin = Number(timeWindowStart.value), xMax = Number(timeWindowEnd.value);
-    if(xMin > xMax) [xMin,xMax] = [xMax,xMin];
-    if(xMin === xMax){
-      xMin -= 24*3600*1000;
-      xMax += 24*3600*1000;
-    }
+    let xMin = Number(timeWindowStart.value), xMax = Number(timeWindowEnd.value); if(xMin > xMax) [xMin,xMax] = [xMax,xMin]; if(xMin === xMax){ xMin -= msPerDay(); xMax += msPerDay(); }
 
     const option = {
-      tooltip:{
-        formatter: params => {
-          const v = params.value || [];
-          const timeStr = v[0] ? new Date(v[0]).toISOString().slice(0,19).replace('T',' ') : 'n/a';
-          return `Time: ${timeStr}<br/>MD: ${v[1].toFixed(2)}<br/>Depth: ${Math.round(v[2])} m`;
-        }
-      },
+      tooltip:{ formatter: params => {
+        const v = params.value || []; const timeStr = v[0] ? new Date(v[0]).toISOString().slice(0,19).replace('T',' ') : 'n/a';
+        return `Time: ${timeStr}<br/>MD: ${v[1].toFixed(2)}<br/>Depth: ${Math.round(v[2])} m`;
+      }},
       visualMap: [
-        {
-          type: 'continuous',
-          dimension: 2, // depth
-          min: depthMin,
-          max: depthMax,
-          inRange: { color: ['#2c7bb6','#ffffbf','#d7191c'] },
-          orient: 'vertical',
-          right: 20,
-          top: 'center',
-          itemHeight: 400,
-          itemWidth: 20,
-          text: ['Depth=Z',''],
-          formatter: v => `${Math.round(v)} m`
-        },
-        {
-          type: 'continuous',
-          dimension: 1, // MD -> size
-          min: mdMin,
-          max: mdMax,
-          inRange: { symbolSize: [4, 24] },
-          show: false
-        }
+        { type: 'continuous', dimension: 2, min: depthMin, max: depthMax, inRange: { color: ['#2c7bb6','#ffffbf','#d7191c'] }, orient: 'vertical', right: 20, top: 'center', itemHeight: 400, itemWidth: 20, text: ['Depth=Z',''], formatter: v => `${Math.round(v)} m` },
+        { type: 'continuous', dimension: 1, min: mdMin, max: mdMax, inRange: { symbolSize: [4, 24] }, show: false }
       ],
-      grid3D: {
-        viewControl: { autoRotate: false, projection: 'perspective' },
-        boxWidth: '300'
-      },
-      xAxis3D: {
-        name: 'Time',
-        type: 'value',
-        min: xMin,
-        max: xMax,
-        axisLabel: { formatter: val => val ? new Date(val).toISOString().slice(0,10) : '' }
-      },
+      grid3D: { viewControl: { autoRotate: false, projection: 'perspective' }, boxWidth: '300' },
+      xAxis3D: { name: 'Time', type: 'value', min: xMin, max: xMax, axisLabel: { formatter: val => val ? new Date(val).toISOString().slice(0,10) : '' } },
       yAxis3D: { name: 'MD', type: 'value', min: mdMin, max: mdMax },
       zAxis3D: { name: 'Depth (m)', type: 'value', min: depthMin, max: 0 },
-      series: [{
-        type: 'scatter3D',
-        data: seriesData,
-        itemStyle: { borderWidth: 0.1 },
-        emphasis: { itemStyle: { borderWidth: 1 } }
-      }]
+      series: [{ type: 'scatter3D', data: seriesData, itemStyle: { borderWidth: 0.1 }, emphasis: { itemStyle: { borderWidth: 1 } } }]
     };
-
     chart.setOption(option, { notMerge: false });
   }
 
-  // Load CSV
-  async function loadData() {
-    try {
+  // Dragging logic: click on center band to move window; native thumbs still work and are visible
+  function setupTrackDrag(){
+    let draggingCenter = false;
+    let centerStartMouseX = 0;
+    let centerInitialStart = 0, centerInitialEnd = 0;
+
+    function clientXToValue(clientX){
+      const rect = timeRangeTrack.getBoundingClientRect();
+      const min = Number(timeWindowStart.min), max = Number(timeWindowStart.max);
+      let x = Math.min(rect.right, Math.max(rect.left, clientX));
+      const frac = (x - rect.left) / rect.width;
+      return Math.round(min + frac * (max - min));
+    }
+
+    timeSliderWrap.addEventListener('mousedown', (e)=>{
+      if(e.button !== 0) return;
+      const rect = timeRangeTrack.getBoundingClientRect();
+      const displayP0 = timeRangeTrack._displayP0 || 0;
+      const displayP1 = timeRangeTrack._displayP1 || 100;
+      const p0px = rect.left + (displayP0/100)*rect.width;
+      const p1px = rect.left + (displayP1/100)*rect.width;
+      const expand = Math.max(10, (MIN_TOUCH_PX - (p1px - p0px))/2);
+      if(e.clientX >= p0px - expand && e.clientX <= p1px + expand){
+        draggingCenter = true; centerStartMouseX = e.clientX; centerInitialStart = Number(timeWindowStart.value); centerInitialEnd = Number(timeWindowEnd.value);
+        e.preventDefault();
+      }
+    }, true);
+
+    document.addEventListener('mousemove', (e)=>{
+      if(!draggingCenter) return;
+      const rect = timeRangeTrack.getBoundingClientRect();
+      const min = Number(timeWindowStart.min), max = Number(timeWindowStart.max);
+      const deltaX = e.clientX - centerStartMouseX;
+      const deltaTime = deltaX / rect.width * (max - min);
+      let newStart = centerInitialStart + deltaTime;
+      let newEnd = centerInitialEnd + deltaTime;
+      if(newStart < min){ const diff = min - newStart; newStart += diff; newEnd += diff; }
+      if(newEnd > max){ const diff = newEnd - max; newStart -= diff; newEnd -= diff; }
+      timeWindowStart.value = Math.round(newStart);
+      timeWindowEnd.value = Math.round(newEnd);
+      updateThumbsAndTrack(); updateTimeWindowLabels();
+    });
+
+    document.addEventListener('mouseup', ()=>{
+      if(draggingCenter){ draggingCenter = false; applyFilters(); }
+    });
+
+    // native inputs react to keyboard and mouse
+    timeWindowStart.addEventListener('input', handleNativeInputChange);
+    timeWindowEnd.addEventListener('input', handleNativeInputChange);
+    timeWindowStart.addEventListener('change', handleNativeInputChange);
+    timeWindowEnd.addEventListener('change', handleNativeInputChange);
+  }
+
+  async function loadData(){
+    try{
       const resp = await fetch(CSV_URL);
       if(!resp.ok) throw new Error('HTTP ' + resp.status);
       const txt = await resp.text();
@@ -488,7 +460,7 @@
       preprocessed = rows.map(normalizeRow).filter(r => Number.isFinite(r.MD) && Number.isFinite(r.Depth_m) && r.Time instanceof Date);
       if(!preprocessed.length) throw new Error('Nessun dato valido dopo preprocessing.');
 
-      // MD sliders bounds
+      // MD sliders
       const mdVals = preprocessed.map(d=>d.MD);
       const mdMinVal = Math.floor(Math.min(...mdVals)||0), mdMaxVal = Math.ceil(Math.max(...mdVals)||6);
       mdMinEl.min = Math.max(0, mdMinVal-1); mdMinEl.max = mdMaxVal+1; mdMinEl.value = Math.max(0, mdMinVal-1);
@@ -501,142 +473,89 @@
       depthMinEl.min = -10000; depthMinEl.max = 0; depthMinEl.value = initMin;
       depthMaxEl.min = -10000; depthMaxEl.max = 0; depthMaxEl.value = 0;
 
-      // Trova il range completo delle date disponibili
+      // date range
       const times = preprocessed.map(d=>d.timeMs).filter(Boolean);
       const tMin = Math.min(...times), tMax = Math.max(...times);
-
-      // Imposta i valori iniziali per i selettori di data
-      // Usiamo tutto il range disponibile come valore iniziale
       const initialMinDate = new Date(tMin).toISOString().slice(0,10);
       const initialMaxDate = new Date(tMax).toISOString().slice(0,10);
-      dateMinInput.value = initialMinDate;
-      dateMaxInput.value = initialMaxDate;
 
-      // Imposta il valore minimo per i selettori di data (prima data disponibile)
-      dateMinInput.min = initialMinDate;
-      dateMaxInput.min = initialMinDate;
-      // Imposta il valore massimo per i selettori di data (ultima data disponibile)
-      dateMinInput.max = initialMaxDate;
-      dateMaxInput.max = initialMaxDate;
+      // totalDays inclusive (fixed logic using UTC midnights)
+      totalDays = computeTotalDaysInclusive(tMin, tMax);
+      totalDaysEl.textContent = `${totalDays}`;
 
-      updateSliderTexts();
-      initChart();
-      setupTimeRangeDrag();
+      dateMinInput.value = initialMinDate; dateMaxInput.value = initialMaxDate;
+      dateMinInput.min = initialMinDate; dateMaxInput.min = initialMinDate;
+      dateMinInput.max = initialMaxDate; dateMaxInput.max = initialMaxDate;
 
-      // Inizializza la barra temporale con i valori dei selettori di data
+      // set timeWindow inputs min/max (ms values)
+      const minMs = Date.parse(initialMinDate + 'T00:00:00Z');
+      const maxMs = Date.parse(initialMaxDate + 'T23:59:59Z');
+      timeWindowStart.min = minMs; timeWindowStart.max = maxMs;
+      timeWindowEnd.min = minMs; timeWindowEnd.max = maxMs;
+
+      updateSliderTexts(); initChart(); setupTrackDrag();
+
+      // initialize logical window based on selectors
       updateTimeRangeFromDateSelectors();
       applyFilters();
-    } catch(err) {
+    } catch(err){
       console.error('Errore caricamento CSV', err);
       alert('Errore caricamento CSV: ' + (err.message||err));
     }
   }
 
-  // Funzione per gestire il drag della finestra temporale
-  function setupTimeRangeDrag() {
-    let isDragging = false;
-    let initialMouseX = 0;
-    let initialWindowStart = 0;
-    let initialWindowEnd = 0;
-    let debounceTimer = null;
+  // update logical inputs when date selectors change
+  function updateTimeRangeFromDateSelectors() {
+    const minDate = Date.parse(dateMinInput.value + 'T00:00:00Z');
+    const maxDate = Date.parse(dateMaxInput.value + 'T23:59:59Z');
+    timeWindowStart.min = minDate; timeWindowStart.max = maxDate;
+    timeWindowEnd.min = minDate; timeWindowEnd.max = maxDate;
 
-    timeRangeTrack.addEventListener('mousedown', (e) => {
-      const rect = timeRangeTrack.getBoundingClientRect();
-      const min = Number(timeWindowStart.min), max = Number(timeWindowStart.max);
-      let v0 = Number(timeWindowStart.value), v1 = Number(timeWindowEnd.value);
-      if(v0 > v1){ [v0,v1] = [v1,v0]; } // swap if inverted
-      const p0 = ((v0 - min) / (max - min)) * rect.width;
-      const p1 = ((v1 - min) / (max - min)) * rect.width;
+    const desiredWindowDays = Math.max(1, Math.round(Number(windowSizeInput.value) || 1));
+    const logicalWindowMs = Math.min(desiredWindowDays * msPerDay(), Math.max(1, maxDate - minDate));
 
-      if(e.offsetX >= p0 && e.offsetX <= p1) {
-        isDragging = true;
-        initialMouseX = e.clientX;
-        initialWindowStart = Number(timeWindowStart.value);
-        initialWindowEnd = Number(timeWindowEnd.value);
-        e.preventDefault(); // Previene la selezione del testo durante il drag
-      }
-    });
+    // default position: left-most
+    let logicalStart = minDate;
+    let logicalEnd = Math.min(maxDate, logicalStart + logicalWindowMs - 1000);
 
-    document.addEventListener('mousemove', (e) => {
-      if(isDragging) {
-        const rect = timeRangeTrack.getBoundingClientRect();
-        const min = Number(timeWindowStart.min), max = Number(timeWindowStart.max);
-        const deltaX = e.clientX - initialMouseX;
-        const deltaTime = deltaX / rect.width * (max - min);
+    if(logicalEnd - logicalStart < logicalWindowMs - 1000){
+      logicalEnd = maxDate;
+      logicalStart = Math.max(minDate, logicalEnd - logicalWindowMs + 1000);
+    }
 
-        let newStart = initialWindowStart + deltaTime;
-        let newEnd = initialWindowEnd + deltaTime;
+    timeWindowStart.value = Math.round(logicalStart);
+    timeWindowEnd.value = Math.round(logicalEnd);
 
-        // Assicurati che la finestra rimanga entro i limiti
-        if(newStart < min) {
-          const diff = min - newStart;
-          newStart += diff;
-          newEnd += diff;
-        }
-        if(newEnd > max) {
-          const diff = newEnd - max;
-          newStart -= diff;
-          newEnd -= diff;
-        }
-
-        // Assicurati che la finestra abbia la dimensione corretta
-        const windowSize = Number(windowSizeInput.value) * 24 * 3600 * 1000;
-        if(newEnd - newStart < windowSize) {
-          if(newStart === min) {
-            newEnd = Math.min(max, newStart + windowSize);
-          } else if(newEnd === max) {
-            newStart = Math.max(min, newEnd - windowSize);
-          } else {
-            const center = (newStart + newEnd) / 2;
-            newStart = Math.max(min, center - windowSize/2);
-            newEnd = Math.min(max, center + windowSize/2);
-          }
-        }
-
-        timeWindowStart.value = newStart;
-        timeWindowEnd.value = newEnd;
-
-        updateTimeWindowTrackVisual();
-        updateTimeWindowLabels();
-
-        // Aggiorna la visualizzazione dei dati con un debounce per migliorare le prestazioni
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-          applyFilters();
-        }, 100);
-      }
-    });
-
-    document.addEventListener('mouseup', () => {
-      isDragging = false;
-      clearTimeout(debounceTimer);
-      applyFilters(); // Assicurati che i dati vengano aggiornati alla fine del drag
-    });
+    updateThumbsAndTrack();
+    updateTimeWindowLabels();
   }
 
-  // Funzione per gestire il cambiamento dei selettori di data
-  function handleDateSelectorChange() {
-    // Aggiorna la barra temporale quando cambia la data di inizio o fine
-    updateTimeRangeFromDateSelectors();
-    applyFilters();
-  }
-
-  // UI wiring
-  function attachEvents() {
+  function attachEvents(){
     const inputs = [mdMinEl, mdMaxEl, depthMinEl, depthMaxEl];
-    inputs.forEach(el => {
-      el.addEventListener('input', applyFilters);
-      el.addEventListener('change', applyFilters);
+    inputs.forEach(el => { el.addEventListener('input', applyFilters); el.addEventListener('change', applyFilters); });
+
+    // native range thumbs
+    timeWindowStart.addEventListener('input', handleNativeInputChange);
+    timeWindowEnd.addEventListener('input', handleNativeInputChange);
+    timeWindowStart.addEventListener('change', handleNativeInputChange);
+    timeWindowEnd.addEventListener('change', handleNativeInputChange);
+
+    // when user edits windowSize manually -> keep center and update logical window accordingly
+    windowSizeInput.addEventListener('change', ()=>{
+      let v = Math.max(1, Math.round(Number(windowSizeInput.value) || 1));
+      windowSizeInput.value = v;
+      const minVal = Number(timeWindowStart.min), maxVal = Number(timeWindowStart.max);
+      const center = (Number(timeWindowStart.value) + Number(timeWindowEnd.value)) / 2;
+      const targetWindowMs = Math.max(msPerDay(), v * msPerDay());
+      let newStart = Math.max(minVal, Math.round(center - targetWindowMs/2));
+      let newEnd = Math.min(maxVal, newStart + targetWindowMs - 1000);
+      if(newEnd > maxVal){ newEnd = maxVal; newStart = Math.max(minVal, newEnd - targetWindowMs + 1000); }
+      timeWindowStart.value = newStart; timeWindowEnd.value = newEnd;
+      updateThumbsAndTrack(); updateTimeWindowLabels(); applyFilters();
     });
 
-    // Eventi per la barra temporale
-    timeWindowStart.addEventListener('input', handleTimeWindowChange);
-    timeWindowEnd.addEventListener('input', handleTimeWindowChange);
-    windowSizeInput.addEventListener('change', handleWindowSizeChange);
-
-    // Eventi per i selettori di data
-    dateMinInput.addEventListener('change', handleDateSelectorChange);
-    dateMaxInput.addEventListener('change', handleDateSelectorChange);
+    dateMinInput.addEventListener('change', ()=>{ updateTimeRangeFromDateSelectors(); applyFilters(); });
+    dateMaxInput.addEventListener('change', ()=>{ updateTimeRangeFromDateSelectors(); applyFilters(); });
   }
 
   // bootstrap
