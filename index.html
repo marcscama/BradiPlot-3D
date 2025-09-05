@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>BRADIPLOT — ECharts 3D (Time=X, MD=Y, Depth=Z)</title>
+  <title>BRADIPLOT — 3D (Time=X, MD=Y, Depth=Z)</title>
   <style>
     :root{--bg:#f6f8fa;--card:#fff;--muted:#6b7280;--accent:#2c7bb6}
     html,body{height:100%;margin:0;font-family:Inter,Arial,Helvetica,sans-serif;background:var(--bg);color:#111}
@@ -39,7 +39,7 @@
       width: 100%;
       max-width: 600px;
       margin: 0 auto;
-      margin-bottom: 16px;
+      margin-bottom: 8px;
       user-select: none;
     }
     .timeRange{
@@ -49,10 +49,17 @@
       border-radius: 6px;
       background: #e6eef5;
       cursor: grab;
-      transition: background 0.3s ease;
+      transition: background 0.18s ease, box-shadow 0.18s ease;
       margin-top: 22px;
+      overflow: visible;
     }
-    .timeRange:active{cursor:grabbing}
+    .timeRange.dragging{
+      box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+    }
+    .timeRange.active{
+      /* when active (thumb pressed or focused) show yellow tint */
+      box-shadow: 0 8px 28px rgba(255,193,7,0.18);
+    }
 
     /* native visible round handles (enabled) */
     input[type='range'].time{
@@ -67,15 +74,54 @@
       margin-top: 16px;
       z-index: 5;
     }
-    input[type='range'].time::-webkit-slider-thumb{
+    input[type='range'].time::-webkit-slider-runnable-track{ height: 12px; background: transparent; border: none; }
+    input[type='range'].time::-moz-range-track{ height: 12px; background: transparent; border: none; }
+
+    /* START = circolare rossa */
+    #timeWindowStart::-webkit-slider-thumb{
       -webkit-appearance: none;
       width: 20px; height: 20px; border-radius: 50%;
-      background: #2c7bb6; border: 2px solid #fff; box-shadow: 0 0 0 6px rgba(44,123,182,0.08);
+      background: #d93b2f; border: 2px solid #fff;
       cursor: pointer; margin-top: -4px;
+      box-shadow: 0 0 0 6px rgba(217,59,47,0.08);
     }
-    input[type='range'].time::-moz-range-thumb{
-      width: 20px; height: 20px; border-radius: 50%; background: #2c7bb6; border: 2px solid #fff; cursor: pointer;
+    #timeWindowStart::-moz-range-thumb{
+      width: 20px; height: 20px; border-radius:50%; background: #d93b2f; border:2px solid #fff;
     }
+
+    /* END = circolare verde */
+    #timeWindowEnd::-webkit-slider-thumb{
+      -webkit-appearance: none;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: #2eb85c; border: 2px solid #fff;
+      cursor: pointer; margin-top: -4px;
+      box-shadow: 0 0 0 6px rgba(46,184,92,0.08);
+    }
+    #timeWindowEnd::-moz-range-thumb{
+      width: 20px; height: 20px; border-radius:50%; background: #2eb85c; border:2px solid #fff;
+    }
+
+    /* explicit classes to style active thumb (added by JS) */
+    input.time.active-thumb-start::-webkit-slider-thumb{
+      box-shadow: 0 0 0 8px rgba(255,223,0,0.36); border-color: #ffd400;
+    }
+    input.time.active-thumb-end::-webkit-slider-thumb{
+      box-shadow: 0 0 0 8px rgba(255,223,0,0.36); border-color: #ffd400;
+    }
+
+    /* Highlight selected thumb in yellow when focused/active (fallback) */
+    #timeWindowStart:focus::-webkit-slider-thumb,
+    #timeWindowStart:active::-webkit-slider-thumb,
+    #timeWindowEnd:focus::-webkit-slider-thumb,
+    #timeWindowEnd:active::-webkit-slider-thumb{
+      box-shadow: 0 0 0 6px rgba(255,223,0,0.25);
+      border-color: #ffd400;
+    }
+
+    /* windowSize under the slider */
+    .windowSizeRow{display:flex;justify-content:flex-end;margin-top:6px;gap:8px;align-items:center}
+    .windowSizeRow label{font-size:13px;color:var(--muted)}
+    .windowSizeRow input{width:80px;padding:6px;border-radius:6px;border:1px solid #e6eef5}
 
     @media (max-width:880px){
       .top{flex-direction:column}
@@ -88,16 +134,16 @@
 <body>
   <div class="app">
     <header>
-      <h1>BRADIPLOT — ECharts 3D (Time=X, MD=Y, Depth=Z)</h1>
+      <h1>BRADIPLOT — 3D (Time=X, MD=Y, Depth=Z)</h1>
       <div style="font-size:13px;color:var(--muted)">Terremoti del catalogo Gossip INGV-OV con MD&gt;0</div>
     </header>
 
     <div class="top">
       <div class="leftCard">
-        <label>Selezione giorni inizio</label>
+        <label>Selezione giorno inizio</label>
         <input id="dateMin" type="date">
 
-        <label style="margin-top:8px">Selezione giorni fine</label>
+        <label style="margin-top:8px">Selezione giorno fine</label>
         <input id="dateMax" type="date">
         <div style="font-size:13px;color:var(--muted);margin-top:6px">Giorni totali: <span id="totalDays">-</span></div>
       </div>
@@ -132,15 +178,17 @@
             <input id="timeWindowEnd" class="time" type="range" step="1000" />
           </div>
 
+          <!-- window size under the slider -->
+          <div class="windowSizeRow">
+            <label for="windowSize">Dimensione finestra (giorni):</label>
+            <input id="windowSize" type="number" min="1" value="700">
+          </div>
+
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
             <div id="timeWindowStartLabel" style="font-size:13px;color:var(--muted)"></div>
             <div id="timeWindowEndLabel" style="font-size:13px;color:var(--muted)"></div>
           </div>
 
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
-            <label for="windowSize">Dimensione finestra (giorni):</label>
-            <input id="windowSize" type="number" min="1" value="500" style="width:80px">
-          </div>
         </div>
       </div>
     </div>
@@ -212,8 +260,6 @@
   let totalDays = 1;
 
   // Controls the minimum pixel width for comfortable dragging.
-  // We'll compute the pixel width that corresponds to 1 day and always use:
-  // minVisiblePx = Math.max(1day_px, MIN_TOUCH_PX)
   const MIN_TOUCH_PX = 36;
 
   function msPerDay(){ return 24*3600*1000; }
@@ -255,10 +301,6 @@
   }
 
   // Update gradient and native thumbs positions.
-  // Mapping rule used:
-  //   desiredPct = (windowSize / totalDays) * 100  (linear)
-  //   minPct = (1 / totalDays) * 100  (represents exactly 1 day)
-  //   visual width in px = clamp(desiredPct/100*trackW, minVisiblePx)
   function updateThumbsAndTrack(){
     const min = Number(timeWindowStart.min), max = Number(timeWindowStart.max);
     if(!min || !max || max <= min){
@@ -299,7 +341,14 @@
     if(displayP0 === 0) displayP1 = Math.min(100, displayPctWidth);
     if(displayP1 === 100) displayP0 = Math.max(0, 100 - displayPctWidth);
 
-    timeRangeTrack.style.background = `linear-gradient(90deg,#e6eef5 ${displayP0}%, var(--accent) ${displayP0}%, var(--accent) ${displayP1}%, #e6eef5 ${displayP1}%)`;
+    // choose colors depending on active/dragging state
+    if(timeRangeTrack.classList.contains('dragging')){
+      timeRangeTrack.style.background = `linear-gradient(90deg,#e6eef5 ${displayP0}%, #ffd400 ${displayP0}%, #ffd400 ${displayP1}%, #e6eef5 ${displayP1}%)`;
+    } else if(timeRangeTrack.classList.contains('active')){
+      timeRangeTrack.style.background = `linear-gradient(90deg,#e6eef5 ${displayP0}%, #ffe082 ${displayP0}%, #ffe082 ${displayP1}%, #e6eef5 ${displayP1}%)`;
+    } else {
+      timeRangeTrack.style.background = `linear-gradient(90deg,#e6eef5 ${displayP0}%, var(--accent) ${displayP0}%, var(--accent) ${displayP1}%, #e6eef5 ${displayP1}%)`;
+    }
 
     // store positions for drag detection
     timeRangeTrack._displayP0 = displayP0;
@@ -374,6 +423,8 @@
     const yArr = dataForColor.map(d=>d.MD);
     const zArr = dataForColor.map(d=>d.Depth_m);
     const depthMin = Math.min(...zArr); const depthMax = Math.max(...zArr);
+    const colorBarEl = document.getElementById('colorBarVisual');
+        if (colorBarEl) colorBarEl.style.background = 'linear-gradient(#d7191c,#ffffbf,#2c7bb6)';
     const mdMin = Math.min(...yArr); const mdMax = Math.max(...yArr);
     tickMax.textContent = `${Math.round(depthMax)} m`; tickMin.textContent = `${Math.round(depthMin)} m`; tickMid.textContent = `${Math.round((depthMax + depthMin)/2)} m`;
     const seriesData = dataForColor.map(d => [d.timeMs, d.MD, d.Depth_m]);
@@ -385,10 +436,10 @@
         return `Time: ${timeStr}<br/>MD: ${v[1].toFixed(2)}<br/>Depth: ${Math.round(v[2])} m`;
       }},
       visualMap: [
-        { type: 'continuous', dimension: 2, min: depthMin, max: depthMax, inRange: { color: ['#2c7bb6','#ffffbf','#d7191c'] }, orient: 'vertical', right: 20, top: 'center', itemHeight: 400, itemWidth: 20, text: ['Depth=Z',''], formatter: v => `${Math.round(v)} m` },
+        { type: 'continuous', dimension: 2, min: depthMin, max: depthMax, inRange: { color: ['#2c7bb6','#ffffbf','#d7191c'] }, orient: 'vertical', right: 20, top: 'center', itemHeight: 300, itemWidth: 20, text: ['Depth=Z',''], formatter: v => `${Math.round(v)} m` },
         { type: 'continuous', dimension: 1, min: mdMin, max: mdMax, inRange: { symbolSize: [4, 24] }, show: false }
       ],
-      grid3D: { viewControl: { autoRotate: false, projection: 'perspective' }, boxWidth: '300' },
+      grid3D: { viewControl: { autoRotate: false, projection: 'perspective', rotateMouseButton: 'left', panMouseButton: 'right',}, boxWidth: '300' },
       xAxis3D: { name: 'Time', type: 'value', min: xMin, max: xMax, axisLabel: { formatter: val => val ? new Date(val).toISOString().slice(0,10) : '' } },
       yAxis3D: { name: 'MD', type: 'value', min: mdMin, max: mdMax },
       zAxis3D: { name: 'Depth (m)', type: 'value', min: depthMin, max: 0 },
@@ -396,7 +447,6 @@
     };
     chart.setOption(option, { notMerge: false });
   }
-
   // Dragging logic: click on center band to move window; native thumbs still work and are visible
   function setupTrackDrag(){
     let draggingCenter = false;
@@ -421,6 +471,8 @@
       const expand = Math.max(10, (MIN_TOUCH_PX - (p1px - p0px))/2);
       if(e.clientX >= p0px - expand && e.clientX <= p1px + expand){
         draggingCenter = true; centerStartMouseX = e.clientX; centerInitialStart = Number(timeWindowStart.value); centerInitialEnd = Number(timeWindowEnd.value);
+        // add dragging class for visual highlight
+        timeRangeTrack.classList.add('dragging');
         e.preventDefault();
       }
     }, true);
@@ -441,7 +493,7 @@
     });
 
     document.addEventListener('mouseup', ()=>{
-      if(draggingCenter){ draggingCenter = false; applyFilters(); }
+      if(draggingCenter){ draggingCenter = false; timeRangeTrack.classList.remove('dragging'); applyFilters(); }
     });
 
     // native inputs react to keyboard and mouse
@@ -449,6 +501,32 @@
     timeWindowEnd.addEventListener('input', handleNativeInputChange);
     timeWindowStart.addEventListener('change', handleNativeInputChange);
     timeWindowEnd.addEventListener('change', handleNativeInputChange);
+  }
+
+  // ----- highlight wiring (thumb press/focus) -----
+  // pointerdown/focus add class; pointerup/blur remove.
+  function wireThumbHighlights(){
+    // pointer events for both mouse and touch
+    const onPointerDownStart = ()=>{ timeRangeTrack.classList.add('active'); timeWindowStart.classList.add('active-thumb-start'); timeWindowStart.classList.add('active-thumb'); };
+    const onPointerUpStart = ()=>{ timeRangeTrack.classList.remove('active'); timeWindowStart.classList.remove('active-thumb-start'); timeWindowStart.classList.remove('active-thumb'); };
+    const onPointerDownEnd = ()=>{ timeRangeTrack.classList.add('active'); timeWindowEnd.classList.add('active-thumb-end'); timeWindowEnd.classList.add('active-thumb'); };
+    const onPointerUpEnd = ()=>{ timeRangeTrack.classList.remove('active'); timeWindowEnd.classList.remove('active-thumb-end'); timeWindowEnd.classList.remove('active-thumb'); };
+
+    timeWindowStart.addEventListener('pointerdown', onPointerDownStart);
+    timeWindowEnd.addEventListener('pointerdown', onPointerDownEnd);
+
+    // keep highlight while focused via keyboard
+    timeWindowStart.addEventListener('focus', ()=>{ timeRangeTrack.classList.add('active'); timeWindowStart.classList.add('active-thumb-start'); timeWindowStart.classList.add('active-thumb'); });
+    timeWindowStart.addEventListener('blur', ()=>{ timeRangeTrack.classList.remove('active'); timeWindowStart.classList.remove('active-thumb-start'); timeWindowStart.classList.remove('active-thumb'); });
+    timeWindowEnd.addEventListener('focus', ()=>{ timeRangeTrack.classList.add('active'); timeWindowEnd.classList.add('active-thumb-end'); timeWindowEnd.classList.add('active-thumb'); });
+    timeWindowEnd.addEventListener('blur', ()=>{ timeRangeTrack.classList.remove('active'); timeWindowEnd.classList.remove('active-thumb-end'); timeWindowEnd.classList.remove('active-thumb'); });
+
+    // global pointerup will clear any active state
+    document.addEventListener('pointerup', ()=>{
+      timeRangeTrack.classList.remove('active');
+      timeWindowStart.classList.remove('active-thumb-start','active-thumb');
+      timeWindowEnd.classList.remove('active-thumb-end','active-thumb');
+    });
   }
 
   async function loadData(){
@@ -493,7 +571,7 @@
       timeWindowStart.min = minMs; timeWindowStart.max = maxMs;
       timeWindowEnd.min = minMs; timeWindowEnd.max = maxMs;
 
-      updateSliderTexts(); initChart(); setupTrackDrag();
+      updateSliderTexts(); initChart(); setupTrackDrag(); wireThumbHighlights();
 
       // initialize logical window based on selectors
       updateTimeRangeFromDateSelectors();
